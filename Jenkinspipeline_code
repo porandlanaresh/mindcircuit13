@@ -1,0 +1,66 @@
+pipeline {
+    agent any
+      tools {
+          maven 'maven3'
+      }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Cloning GIT HUB Repo'
+                git branch: 'main', url: 'https://github.com/porandlanaresh/mindcircuit13.git'
+            }
+        }
+        
+        stage('Building Artifacts') {
+            steps {
+                echo 'Build Artifact'
+                sh 'mvn clean package'
+            }
+        }
+        
+        stage('Docker Image') {
+            steps {
+                sh 'docker build -t nrshub/mindcircuit13:${BUILD_NUMBER} .'
+                echo 'Docker Image Building'
+            }
+        }
+        
+        stage('Push to Dockerhub') {
+            steps {
+                script {
+                withCredentials([string(credentialsId: 'dockerhub', variable: 'dockerhub')]) {
+                sh 'docker login -u nrshub -p ${dockerhub}'
+                   }
+                sh 'docker push nrshub/mindcircuit13:${BUILD_NUMBER} '
+                echo 'Pushed to Dockerhub'
+               }
+           }
+       }
+       stage('Update Deployment File') {
+    environment {
+        GIT_REPO_NAME = "mindcircuit13"
+        GIT_USER_NAME = "porandlanaresh"
+    }
+
+    steps {
+        echo 'Updating Deployment File'
+
+        withCredentials([string(credentialsId: 'githubtoken', variable: 'githubtoken')]) {
+            sh '''
+                git config user.email "nareshba474@gmail.com"
+                git config user.name "porandlanaresh"
+
+                BUILD_NUMBER=${BUILD_NUMBER}
+
+                sed -i "s/batch13:.*/batch13: ${BUILD_NUMBER}/g" deploymentfiles/deployment.yml
+
+                git add deploymentfiles/deployment.yml
+                git commit -m "Update deployment image to version ${BUILD_NUMBER}"
+                git push https://${githubtoken}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git HEAD:main
+            '''
+          }
+         }
+       }
+     }
+}     
