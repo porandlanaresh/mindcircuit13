@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: mc-app
-        image: nrshub/mindcircuit13
+        image: nrshub/mindcircuit13:xyz
         ports:
         - containerPort: 8080
 
